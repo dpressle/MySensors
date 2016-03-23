@@ -19,15 +19,10 @@
  *******************************
  *
  * REVISION HISTORY
- * Version 1.0 - Henrik Ekblad
- * 
+ * Version 1.0
+ *
  * DESCRIPTION
- * Example sketch for a "light switch" where you can control light or something 
- * else from both HA controller and a local physical button 
- * (connected between digital pin 3 and GND).
- * This node also works as a repeader for other nodes
- * http://www.mysensors.org/build/relay
- */ 
+ */
 
 #include <MySensor.h>
 #include <SPI.h>
@@ -38,16 +33,23 @@
 #define BUTTON_STOP_PIN  4  // Arduino Digital I/O pin number for button 
 #define RELAY_PIN  5  // Arduino Digital I/O pin number for relay 
 #define RELAY_POWER_PIN  6  // Arduino Digital I/O pin number for relay 
+
+#define NODE_ID 2 //set the node id else put AUTO to auto assign by controller 
 #define CHILD_ID 1   // Id of the sensor child
+
 #define RELAY_ON 1
 #define RELAY_OFF 0
 #define UP 0
 #define DOWN 1
 #define STOP 2
+#define SKETCH_NAME "roller shuter"
+#define SKETCH_VER "1.0"
 
-Bounce debouncerUp = Bounce(); 
-Bounce debouncerDown = Bounce(); 
-Bounce debouncerStop = Bounce(); 
+const bool IS_ACK = true;
+
+Bounce debouncerUp = Bounce();
+Bounce debouncerDown = Bounce();
+Bounce debouncerStop = Bounce();
 
 MySensor gw;
 MyMessage msgUp(CHILD_ID, V_UP);
@@ -59,53 +61,52 @@ int oldValueUp = 0;
 int oldValueDown = 0;
 int oldValueStop = 0;
 
-void setup()  
-{  
+void setup()
+{
   Serial.begin(115200);
 
-  
- // Setup the button
-  pinMode(BUTTON_UP_PIN,INPUT_PULLUP);
+  gw.begin(incomingMessage, NODE_ID, IS_ACK);
+
+  // Send the sketch version information to the gateway and Controller
+  gw.sendSketchInfo(SKETCH_NAME, SKETCH_VER);
+
+  // Setup the button
+  pinMode(BUTTON_UP_PIN, INPUT_PULLUP);
   // Activate internal pull-up
-  digitalWrite(BUTTON_UP_PIN,HIGH);
-  
-  pinMode(BUTTON_DOWN_PIN,INPUT_PULLUP);
+  digitalWrite(BUTTON_UP_PIN, HIGH);
+
+  pinMode(BUTTON_DOWN_PIN, INPUT_PULLUP);
   // Activate internal pull-up
-  digitalWrite(BUTTON_DOWN_PIN,HIGH);
-  
-  pinMode(BUTTON_STOP_PIN,INPUT_PULLUP);
+  digitalWrite(BUTTON_DOWN_PIN, HIGH);
+
+  pinMode(BUTTON_STOP_PIN, INPUT_PULLUP);
   // Activate internal pull-up
-  digitalWrite(BUTTON_STOP_PIN,HIGH);
-  
+  digitalWrite(BUTTON_STOP_PIN, HIGH);
+
   // After setting up the button, setup debouncer
   debouncerUp.attach(BUTTON_UP_PIN);
   debouncerUp.interval(5);
-   // After setting up the button, setup debouncer
+  // After setting up the button, setup debouncer
   debouncerDown.attach(BUTTON_DOWN_PIN);
   debouncerDown.interval(5);
-   // After setting up the button, setup debouncer
+  // After setting up the button, setup debouncer
   debouncerStop.attach(BUTTON_STOP_PIN);
   debouncerStop.interval(5);
 
   // Make sure relays are off when starting up
   digitalWrite(RELAY_PIN, RELAY_OFF);
   // Then set relay pins in output mode
-  pinMode(RELAY_PIN, OUTPUT);   
-  
-   // Make sure relays are off when starting up
+  pinMode(RELAY_PIN, OUTPUT);
+
+  // Make sure relays are off when starting up
   digitalWrite(RELAY_POWER_PIN, RELAY_OFF);
   // Then set relay pins in output mode
-  pinMode(RELAY_POWER_PIN, OUTPUT);   
-
-  gw.begin(incomingMessage, AUTO, true);
-
-  // Send the sketch version information to the gateway and Controller
-  gw.sendSketchInfo("roller shuter", "1.0");
+  pinMode(RELAY_POWER_PIN, OUTPUT);
 
   // Register all sensors to gw (they will be created as child devices)
   gw.present(CHILD_ID, S_COVER);
 
-  // Set relay to last known state (using eeprom storage) 
+  // Set shutter to last known state (using eeprom storage)
   shutterAction(gw.loadState(CHILD_ID));
 }
 
@@ -113,7 +114,7 @@ void setup()
 /*
 *  Example on how to asynchronously check for new messages from gw
 */
-void loop() 
+void loop()
 {
   gw.process();
 
@@ -121,93 +122,92 @@ void loop()
   // Get the update value
   value = debouncerUp.read();
   if (value == 0 && value != oldValueUp) {
-      shutterAction(UP);
+    shutterAction(UP);
+	gw.send(msgUp);
   }
   oldValueUp = value;
-  
+
   debouncerDown.update();
   value = debouncerDown.read();
   if (value == 0 && value != oldValueDown) {
-      shutterAction(DOWN);
+    shutterAction(DOWN);
+	gw.send(msgDown);
   }
   oldValueDown = value;
-  
+
   debouncerStop.update();
   value = debouncerStop.read();
   if (value == 0 && value != oldValueStop) {
-      shutterAction(STOP);
+    shutterAction(STOP);
+	gw.send(msgStop);
   }
   oldValueStop = value;
-} 
- 
+}
+
 void incomingMessage(const MyMessage &message) {
   // We only expect one type of message from controller. But we better check anyway.
   Serial.println("recieved incomming message");
   switch (message.type) {
-  case V_UP:
-    gw.saveState(CHILD_ID, 0);
-    Serial.print("Incoming change for ID_S_COVER:");
-    Serial.print(message.sensor);
-    Serial.print(", New status: ");
-    Serial.println("V_UP");
-    shutterAction(gw.loadState(CHILD_ID));
-    Serial.print("Done shutterAction procedure");
-    break;
+    case V_UP:
+      Serial.print("Incoming change for ID_S_COVER:");
+      Serial.print(message.sensor);
+      Serial.print(", New status: ");
+      Serial.println("V_UP");
+      shutterAction(UP);
+	  gw.saveState(CHILD_ID, UP);
+      Serial.print("Done shutterAction procedure");
+      break;
 
-  case V_DOWN:
-    gw.saveState(CHILD_ID, 1);
-    Serial.print("Incoming change for ID_S_COVER:");
-    Serial.print(message.sensor);
-    Serial.print(", New status: ");
-    Serial.println("V_DOWN");
-    shutterAction(gw.loadState(CHILD_ID));
-    Serial.print("Done shutterAction procedure");
-    break;
+    case V_DOWN:
+      Serial.print("Incoming change for ID_S_COVER:");
+      Serial.print(message.sensor);
+      Serial.print(", New status: ");
+      Serial.println("V_DOWN");
+      shutterAction(DOWN);
+	  gw.saveState(CHILD_ID, DOWN);
+      Serial.print("Done shutterAction procedure");
+      break;
 
-  case V_STOP:
-    gw.saveState(CHILD_ID, 2);
-    Serial.print("Incoming change for ID_S_COVER:");
-    Serial.print(message.sensor);
-    Serial.print(", New status: ");
-    Serial.println("V_STOP");
-    shutterAction(gw.loadState(CHILD_ID));
-    Serial.print("Done shutterAction procedure");
-    break;
+    case V_STOP:
+      Serial.print("Incoming change for ID_S_COVER:");
+      Serial.print(message.sensor);
+      Serial.print(", New status: ");
+      Serial.println("V_STOP");
+      shutterAction(STOP);
+	  gw.saveState(CHILD_ID, STOP);
+      Serial.print("Done shutterAction procedure");
+      break;
   }
   Serial.print("exiting incoming message");
   return;
-  
 }
 
 void shutterAction(int actionVal) {
 
-  //int actionVal = gw.loadState(CHILD_ID);
-
   Serial.print("Shutter is : ");
   Serial.println(actionVal);
-  actionVal;
   switch (actionVal) {
-  case 0:
-    Serial.println("Opening");
-    motorUp();
-    gw.process();
-    actionVal = gw.loadState(CHILD_ID);
-    gw.send(msgUp.set(V_UP));
-    break;
-  case 1:
-    Serial.println("Closing");
-    motorDown();
-    gw.process();
-    actionVal = gw.loadState(CHILD_ID);
-    gw.send(msgDown.set(V_DOWN));
-    break;
-  case 2:
-    Serial.println("Idle");
-    motorStop();
-    gw.process();
-    actionVal = gw.loadState(CHILD_ID);
-    gw.send(msgStop.set(V_STOP));
-    break;
+    case UP:
+      Serial.println("Opening");
+      motorUp();
+      //gw.process();
+      //actionVal = gw.loadState(CHILD_ID);
+      //gw.send(msgUp);
+      break;
+    case DOWN:
+      Serial.println("Closing");
+      motorDown();
+      //gw.process();
+      //actionVal = gw.loadState(CHILD_ID);
+      //gw.send(msgDown);
+      break;
+    case STOP:
+      Serial.println("Idle");
+      motorStop();
+      //gw.process();
+      //actionVal = gw.loadState(CHILD_ID);
+		//gw.send(msgStop);
+      break;
   }
   return;
 
@@ -215,28 +215,28 @@ void shutterAction(int actionVal) {
 
 void motorUp() {
   motorStop();
-  delay(100); 
+  delay(100);
   digitalWrite(RELAY_PIN, RELAY_ON);
-  delay(100); 
+  delay(100);
   motorStart();
-  delay(100); 
+  delay(100);
 }
 
 void motorDown() {
   motorStop();
-  delay(100); 
+  delay(100);
   digitalWrite(RELAY_PIN, RELAY_OFF);
-  delay(100); 
+  delay(100);
   motorStart();
-  delay(100); 
+  delay(100);
 }
 
 void motorStop() {
   digitalWrite(RELAY_POWER_PIN, RELAY_OFF);
-  delay(100); 
+  delay(100);
 }
 
 void motorStart() {
   digitalWrite(RELAY_POWER_PIN, RELAY_ON);
-  delay(100); 
+  delay(100);
 }
