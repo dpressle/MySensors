@@ -16,10 +16,10 @@
 #define CHILD_ID 1   // sensor Id of the sensor child
 
 const int LEVELS = 100; //the number of levels
-const float rollTime = 10.0; //the overall rolling time of the shutter, to be manualy chnage for every shutter
+const float rollTime = 15.0; //the overall rolling time of the shutter, to be manualy chnage for every shutter
 const int NODE_ID = AUTO; //set the node id else put AUTO to auto assign by controller
 const bool IS_ACK = true; //is to acknowlage 
-const bool IS_REP = false; //is this a repeater node
+const bool IS_REP = true; //is this a repeater node
 
 // debouncing parameters
 int value = 0;
@@ -48,6 +48,7 @@ void shuttersUp(void)
 {
   Serial.println("Shutters going up.");
   digitalWrite(RELAY_DIR_PIN, RELAY_ON);
+  delay(100);
   digitalWrite(RELAY_POWER_PIN, RELAY_ON);
   directionUpDown = DIRECTION_UP;
   isMoving = true;
@@ -57,6 +58,7 @@ void shuttersDown(void)
 {
   Serial.println("Shutters going down.");
   digitalWrite(RELAY_DIR_PIN, RELAY_OFF);
+  delay(100);
   digitalWrite(RELAY_POWER_PIN, RELAY_ON);
   directionUpDown = DIRECTION_DOWN;
   isMoving = true;
@@ -67,6 +69,7 @@ void shuttersHalt(void)
   Serial.println("Shutters halted.");
   digitalWrite(RELAY_POWER_PIN, RELAY_OFF);
   delay(100);
+  digitalWrite(RELAY_DIR_PIN, RELAY_OFF);
   isMoving = false;
   requestedShutterLevel = currentShutterLevel;
   gw.saveState(CHILD_ID, currentShutterLevel);
@@ -75,20 +78,20 @@ void shuttersHalt(void)
 }
 
 void changeShuttersLevel(int level){
-  if (level > 100)
-    level = 100;
-  else if (level < 0)
-    level = 0;
-  int dir = (level > currentShutterLevel) ? DIRECTION_DOWN : DIRECTION_UP;
-  if (isMoving &&  dir != directionUpDown) {
-    shuttersHalt();
-  }
-  requestedShutterLevel = level;
+	if (level < 0 || level > 100) {
+		InitShutters(level);
+	} else {
+		int dir = (level > currentShutterLevel) ? DIRECTION_DOWN : DIRECTION_UP;
+		if (isMoving && dir != directionUpDown) {
+			shuttersHalt();
+		}
+		requestedShutterLevel = level;
+	}
 }
 
-bool InitShutters(int savedLevel)
+bool InitShutters(int level)
 {
-  if (savedLevel < 0 || savedLevel > 100) 
+  if (level < 0 || level > 100) 
   {
     Serial.println("Current level unsure, calibrating...");
     shuttersUp();
@@ -99,15 +102,14 @@ bool InitShutters(int savedLevel)
   else 
   {
     Serial.print("No clibration needed. setting to: ");
-    Serial.println(savedLevel);
-    currentShutterLevel = savedLevel;
-  changeShuttersLevel(savedLevel);
+    Serial.println(level);
+    currentShutterLevel = level;
+	changeShuttersLevel(currentShutterLevel);
     return false;
   }
 }
 
 void incomingMessage(const MyMessage &message) {
-  // We only expect one type of message from controller. But we better check anyway.
   Serial.println("recieved incomming message");
   switch (message.type) {
     case V_UP:
@@ -137,12 +139,13 @@ void incomingMessage(const MyMessage &message) {
       Serial.println("Done shutterAction procedure");
       break;
   
-  case V_PERCENTAGE:
-    Serial.print("Incoming change for ID_S_COVER:");
+	case V_PERCENTAGE:
+	  Serial.print("Incoming change for ID_S_COVER:");
       Serial.print(message.sensor);
       Serial.print(", New status: ");
       Serial.println("V_PERCENTAGE");
       changeShuttersLevel(message.getInt());
+	  //InitShutters(message.getInt());//send value < 0 or > 100 to calibrate
       Serial.println("Done shutterAction procedure");
       break;
   }
@@ -153,6 +156,12 @@ void incomingMessage(const MyMessage &message) {
 void setup(void)
 {
   Serial.begin(115200);
+   Serial.println("StartUP");
+    // start the gateway
+  gw.begin(incomingMessage, NODE_ID, IS_REP);
+  // Send the sketch version information to the gateway and Controller
+  gw.sendSketchInfo(SKETCH_NAME, SKETCH_VER);
+  
    // Setup the button
   pinMode(BUTTON_UP_PIN, INPUT_PULLUP);
   // Activate internal pull-up
@@ -185,11 +194,7 @@ void setup(void)
   digitalWrite(RELAY_POWER_PIN, RELAY_OFF);
   // Then set relay pins in output mode
   pinMode(RELAY_POWER_PIN, OUTPUT);
-  
-  // start the gateway
-  gw.begin(incomingMessage, NODE_ID, IS_REP);
-  // Send the sketch version information to the gateway and Controller
-  gw.sendSketchInfo(SKETCH_NAME, SKETCH_VER);
+
   // Register all sensors to gw (they will be created as child devices)
   gw.present(CHILD_ID, S_COVER, "sensor for roller shutter", IS_ACK);
   
@@ -198,9 +203,7 @@ void setup(void)
 
 void loop(void)
 {
-  //shutters.loop();
   debouncerUp.update();
-  // Get the update value
   value = debouncerUp.read();
   if (value == 0 && value != oldValueUp) {
     changeShuttersLevel(0);
@@ -247,10 +250,8 @@ void loop(void)
     
     if (currentShutterLevel == requestedShutterLevel)
     {
-      //Serial.println("5");
-    
+      //Serial.println("5");   
       shuttersHalt();
-
     }
   }
   else if (requestedShutterLevel != currentShutterLevel) 
