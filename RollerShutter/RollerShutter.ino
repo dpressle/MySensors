@@ -1,5 +1,13 @@
+// Enable debug prints to serial monitor
+//#define MY_DEBUG 
+
+// Enable and select radio type attached
+#define MY_RADIO_NRF24
+
+#define MY_RF24_PA_LEVEL RF24_PA_HIGH
+
 #include <Bounce2.h>
-#include <MySensor.h>
+#include <MySensors.h>
 #include <SPI.h>
 
 #define BUTTON_UP_PIN  2  // Arduino Digital I/O pin number for button 
@@ -14,11 +22,11 @@
 #define SKETCH_NAME "roller shuter"
 #define SKETCH_VER "2.0"
 #define CHILD_ID 1   // sensor Id of the sensor child
-
+#define PRESENT_MESSAGE "sensor for roller shutter"
 const int LEVELS = 100; //the number of levels
 const float rollTime = 15.0; //the overall rolling time of the shutter, to be manualy chnage for every shutter
 const int NODE_ID = AUTO; //set the node id else put AUTO to auto assign by controller
-const bool IS_ACK = true; //is to acknowlage 
+const bool IS_ACK = false; //is to acknowlage 
 const bool IS_REP = true; //is this a repeater node
 
 // debouncing parameters
@@ -39,7 +47,6 @@ Bounce debouncerUp = Bounce();
 Bounce debouncerDown = Bounce();
 Bounce debouncerStop = Bounce();
 
-MySensor gw;
 MyMessage msgUp(CHILD_ID, V_UP);
 MyMessage msgDown(CHILD_ID, V_DOWN);
 MyMessage msgStop(CHILD_ID, V_STOP);
@@ -72,19 +79,23 @@ void shuttersHalt(void)
   digitalWrite(RELAY_DIR_PIN, RELAY_OFF);
   isMoving = false;
   requestedShutterLevel = currentShutterLevel;
-  gw.saveState(CHILD_ID, currentShutterLevel);
+  saveState(CHILD_ID, currentShutterLevel);
   Serial.print("saving level to: ");
   Serial.println(currentShutterLevel);
 }
 
 void changeShuttersLevel(int level){
 	if (level < 0 || level > 100) {
+  Serial.println("level is out of range calling InitShutters with:");
+  Serial.println(level);
 		InitShutters(level);
 	} else {
 		int dir = (level > currentShutterLevel) ? DIRECTION_DOWN : DIRECTION_UP;
 		if (isMoving && dir != directionUpDown) {
 			shuttersHalt();
 		}
+   Serial.println("setting requested level to:");
+   Serial.println(level);
 		requestedShutterLevel = level;
 	}
 }
@@ -104,12 +115,12 @@ bool InitShutters(int level)
     Serial.print("No clibration needed. setting to: ");
     Serial.println(level);
     currentShutterLevel = level;
-	changeShuttersLevel(currentShutterLevel);
+	  changeShuttersLevel(currentShutterLevel);
     return false;
   }
 }
 
-void incomingMessage(const MyMessage &message) {
+void receive(const MyMessage &message) {
   Serial.println("recieved incomming message");
   switch (message.type) {
     case V_UP:
@@ -153,15 +164,19 @@ void incomingMessage(const MyMessage &message) {
   return;
 }
 
+void presentation()  
+{
+	// Send the sketch version information to the gateway and Controller
+	sendSketchInfo(SKETCH_NAME, SKETCH_VER);
+	// Register all sensors to gw (they will be created as child devices)
+	present(CHILD_ID, S_COVER, PRESENT_MESSAGE, IS_ACK);
+}
+
 void setup(void)
 {
-  Serial.begin(115200);
+   Serial.begin(9600);
    Serial.println("StartUP");
-    // start the gateway
-  gw.begin(incomingMessage, NODE_ID, IS_REP);
-  // Send the sketch version information to the gateway and Controller
-  gw.sendSketchInfo(SKETCH_NAME, SKETCH_VER);
-  
+
    // Setup the button
   pinMode(BUTTON_UP_PIN, INPUT_PULLUP);
   // Activate internal pull-up
@@ -195,10 +210,7 @@ void setup(void)
   // Then set relay pins in output mode
   pinMode(RELAY_POWER_PIN, OUTPUT);
 
-  // Register all sensors to gw (they will be created as child devices)
-  gw.present(CHILD_ID, S_COVER, "sensor for roller shutter", IS_ACK);
-  
-  InitShutters(gw.loadState(CHILD_ID));
+  InitShutters(loadState(CHILD_ID));
 }
 
 void loop(void)
@@ -207,7 +219,7 @@ void loop(void)
   value = debouncerUp.read();
   if (value == 0 && value != oldValueUp) {
     changeShuttersLevel(0);
-    gw.send(msgUp, IS_ACK);
+    send(msgUp, IS_ACK);
   }
   oldValueUp = value;
 
@@ -215,7 +227,7 @@ void loop(void)
   value = debouncerDown.read();
   if (value == 0 && value != oldValueDown) {
     changeShuttersLevel(100);
-    gw.send(msgDown, IS_ACK);
+    send(msgDown, IS_ACK);
   }
   oldValueDown = value;
 
@@ -223,7 +235,7 @@ void loop(void)
   value = debouncerStop.read();
   if (value == 0 && value != oldValueStop) {
     shuttersHalt();
-    gw.send(msgStop, IS_ACK);
+    send(msgStop, IS_ACK);
   }
   oldValueStop = value;
   
