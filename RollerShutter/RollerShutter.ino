@@ -1,10 +1,12 @@
 // Enable debug prints to serial monitor
-//#define MY_DEBUG 
+#define MY_DEBUG 
 
 // Enable and select radio type attached
 #define MY_RADIO_NRF24
 
 #define MY_RF24_PA_LEVEL RF24_PA_HIGH
+// uncomment if we want to manually assign an ID
+//#define MY_NODE_ID 1 /
 
 #include <Bounce2.h>
 #include <MySensors.h>
@@ -17,17 +19,15 @@
 #define RELAY_POWER_PIN  6  // Arduino Digital I/O pin number for relay 
 #define RELAY_ON 1
 #define RELAY_OFF 0
-#define DIRECTION_DOWN 0
-#define DIRECTION_UP 1
+#define DIRECTION_DOWN 1
+#define DIRECTION_UP 0
 #define SKETCH_NAME "roller shuter"
 #define SKETCH_VER "2.0"
 #define CHILD_ID 1   // sensor Id of the sensor child
 #define PRESENT_MESSAGE "sensor for roller shutter"
 const int LEVELS = 100; //the number of levels
 const float rollTime = 15.0; //the overall rolling time of the shutter, to be manualy chnage for every shutter
-const int NODE_ID = AUTO; //set the node id else put AUTO to auto assign by controller
 const bool IS_ACK = false; //is to acknowlage 
-const bool IS_REP = true; //is this a repeater node
 
 // debouncing parameters
 int value = 0;
@@ -54,7 +54,7 @@ MyMessage msgStop(CHILD_ID, V_STOP);
 void shuttersUp(void)
 {
   Serial.println("Shutters going up.");
-  digitalWrite(RELAY_DIR_PIN, RELAY_ON);
+  digitalWrite(RELAY_DIR_PIN, RELAY_OFF);
   delay(100);
   digitalWrite(RELAY_POWER_PIN, RELAY_ON);
   directionUpDown = DIRECTION_UP;
@@ -64,7 +64,7 @@ void shuttersUp(void)
 void shuttersDown(void)
 {
   Serial.println("Shutters going down.");
-  digitalWrite(RELAY_DIR_PIN, RELAY_OFF);
+  digitalWrite(RELAY_DIR_PIN, RELAY_ON);
   delay(100);
   digitalWrite(RELAY_POWER_PIN, RELAY_ON);
   directionUpDown = DIRECTION_DOWN;
@@ -86,16 +86,16 @@ void shuttersHalt(void)
 
 void changeShuttersLevel(int level){
 	if (level < 0 || level > 100) {
-  Serial.println("level is out of range calling InitShutters with:");
-  Serial.println(level);
+		Serial.println("level is out of range calling InitShutters with:");
+		Serial.println(level);
 		InitShutters(level);
 	} else {
 		int dir = (level > currentShutterLevel) ? DIRECTION_DOWN : DIRECTION_UP;
 		if (isMoving && dir != directionUpDown) {
 			shuttersHalt();
 		}
-   Serial.println("setting requested level to:");
-   Serial.println(level);
+		Serial.println("setting requested level to:");
+		Serial.println(level);
 		requestedShutterLevel = level;
 	}
 }
@@ -174,7 +174,7 @@ void presentation()
 
 void setup(void)
 {
-   Serial.begin(9600);
+   Serial.begin(115200);
    Serial.println("StartUP");
 
    // Setup the button
