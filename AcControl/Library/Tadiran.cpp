@@ -288,6 +288,7 @@ void Tadiran::print()
 	if (mode==FAN_auto) Serial.println("auto");
 	else if (mode==FAN_1) Serial.println("1");
 	else if (mode==FAN_2) Serial.println("2");
-	else (mode==FAN_3) Serial.println("3");
+	else if (mode==FAN_3) Serial.println("3");
+	else Serial.println("N/A");
 	
 }
