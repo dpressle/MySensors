@@ -4,7 +4,7 @@
 // Enable and select radio type attached
 #define MY_RADIO_NRF24
 
-#define MY_RF24_PA_LEVEL RF24_PA_HIGH
+// #define MY_RF24_PA_LEVEL RF24_PA_HIGH
 // uncomment if we want to manually assign an ID
 //#define MY_NODE_ID 1 /
 

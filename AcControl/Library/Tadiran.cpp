@@ -267,28 +267,27 @@ void Tadiran::debug()
 /**
  * prints the actul state of the object on the serial line
  */
-void Tadiran::print()
-{
-	Serial.print("State = ");
-	if (state==STATE_on) Serial.println("on");
-	else Serial.println("off");
+// void Tadiran::print()
+// {
+	// Serial.print("State = ");
+	// if (state==STATE_on) Serial.println("on");
+	// else Serial.println("off");
 	
-	Serial.print("Mode = ");
-	if (mode==MODE_auto) Serial.println("auto");
-	else if (mode==MODE_dry) Serial.println("dry");
-	else if (mode==MODE_cold) Serial.println("cold");
-	else if (mode==MODE_fan) Serial.println("fan");
-	else Serial.println("heat");
+	// Serial.print("Mode = ");
+	// if (mode==MODE_auto) Serial.println("auto");
+	// else if (mode==MODE_dry) Serial.println("dry");
+	// else if (mode==MODE_cold) Serial.println("cold");
+	// else if (mode==MODE_fan) Serial.println("fan");
+	// else Serial.println("heat");
 
-	Serial.print("Temperature = ");
-	Serial.println(temperature,DEC);
+	// Serial.print("Temperature = ");
+	// Serial.println(temperature,DEC);
 	
-	Serial.print("Fan = ");
-	Serial.println(fan,DEC);
-	if (mode==FAN_auto) Serial.println("auto");
-	else if (mode==FAN_1) Serial.println("1");
-	else if (mode==FAN_2) Serial.println("2");
-	else if (mode==FAN_3) Serial.println("3");
-	else Serial.println("N/A");
-	
-}
+	// Serial.print("Fan = ");
+	// Serial.println(fan,DEC);
+	// if (mode==FAN_auto) Serial.println("auto");
+	// else if (mode==FAN_1) Serial.println("1");
+	// else if (mode==FAN_2) Serial.println("2");
+	// else if (mode==FAN_3) Serial.println("3");
+	// else Serial.println("N/A");	
+// }
